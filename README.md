@@ -1,2 +1,2 @@
 # hunt-the-wumpus-mathyou
-oh im gurpreet
+oh watashi wa gurpreet
