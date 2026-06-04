@@ -43,4 +43,4 @@ class Enemy(Character):
             print("You fend off " + self.name + " with the " + combat_item)
             return True
         else:
-            print(self.name + " swallows you whole. You suck hahahahahaha you lose you die alone and scared as your body melts away in the acid and the Wumpus starts singing Yara Yara phonk and the last thing you hear is Yarararara")
+            print(self.name + " made you lose 20 yararara jannah points")

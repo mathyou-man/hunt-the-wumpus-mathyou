@@ -22,20 +22,44 @@ dungeon.set_link_caves(cavern, "north")
 dungeon.set_link_caves(grotto, "west")
 grotto.set_link_caves(dungeon, "east")
 
-current_cave = cavern
-
 #sets characters
+current_cave = cavern
 harry = Enemy("Harry", "A hairy, smelly wumpus")
-harry.describe()
 harry.set_dialogue("Come closer. I can't see you")
 harry.set_weakness("gurpreet aura")
-harry.talk()
+dungeon.set_character(harry)
 
-fight_with = input("What will you fight with? ")
-harry.fight(fight_with)
-
-while True:
-    #print("\n")
+dead = False
+while dead == False:
     current_cave.describe()
+    #checks whether cave has a character
+    inhabitant = current_cave.get_character()
+    if inhabitant is not None:
+        inhabitant.describe()
     command = input("> ")
-    current_cave = current_cave.move(command)
+    
+    #does certain things when certain commands are put
+    if command in ["north", "east", "south", "west"]:
+        current_cave = current_cave.move(command)
+    elif command == "talk":
+        if inhabitant is not None:
+            inhabitant.talk()
+            input()
+    elif command == "fight":
+        if inhabitant is not None and isinstance(inhabitant, Enemy):
+            fight_with = input("What will you fight with? >")
+            if inhabitant.fight(fight_with) is True:
+                clear_screen()
+                print("Light work")
+                current_cave.set_character(None)
+                input()
+            else:
+                clear_screen()
+                print("That was ineffective. You ran away with your flesh intact")
+                print("Game over.")
+                input()
+                dead = True
+        else:
+            print("There is no one here to run the 1s with")
+        
+    clear_screen()
