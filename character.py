@@ -6,10 +6,17 @@ class Character():
         self.name = char_name
         self.description = char_description
         self.dialogue = None
+        self.health = 0
     
     def set_dialogue(self, dialogue):
         '''character dialogue'''
         self.dialogue = dialogue
+
+    def set_health(self, health):
+        self.health = health
+
+    def get_health(self):
+        return self.health
 
     def describe(self):
         '''prints description'''
@@ -25,22 +32,13 @@ class Character():
 
     def fight(self):
         '''manages fighting with the character'''
-        print(self.name + " doesn't want to engage in dangerous and life threatening combat both based in close and long range. Please find the exit doors on each side of the cinema. If the exit doors have disappeared you've landed in the Backrooms. Nino Nakano the goat.")
+        print(self.name + " doesn't seem to want to fight.")
 
 class Enemy(Character):
     def __init__(self, char_name, char_description):
         super().__init__(char_name, char_description)
-        self.weakness = None
-
-    def set_weakness(self, item_weakness):
-        self.weakness = item_weakness
-
-    def get_weakness(self):
-        return self.weakness
-    
-    def fight(self, combat_item):
-        if combat_item == self.weakness:
-            print("You fend off " + self.name + " with the " + combat_item)
-            return True
-        else:
-            print(self.name + " made you lose 20 yararara jannah points")
+            
+    def fight(self, weapon_damage):
+        self.health -= weapon_damage
+        if self.health <= 0:
+            print("The " + self.name + " succumbs to its injuries.")
