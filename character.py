@@ -17,6 +17,9 @@ class Character():
 
     def get_health(self):
         return self.health
+    
+    def get_name(self):
+        return self.name
 
     def describe(self):
         '''prints description'''
@@ -35,10 +38,24 @@ class Character():
         print(self.name + " doesn't seem to want to fight.")
 
 class Enemy(Character):
-    def __init__(self, char_name, char_description):
+    def __init__(self, char_name, char_description, damage, attack_speed):
         super().__init__(char_name, char_description)
-            
+        self.enemy_damage = damage
+        self.enemy_attack_speed = attack_speed
+        
     def fight(self, weapon_damage):
         self.health -= weapon_damage
         if self.health <= 0:
             print("The " + self.name + " succumbs to its injuries.")
+    
+    def set_damage(self, damage):
+        self.enemy_damage = damage
+
+    def get_damage(self):
+        return self.enemy_damage
+    
+    def set_speed(self, attack_speed):
+        self.enemy_attack_speed = attack_speed
+
+    def get_speed(self):
+        return self.enemy_attack_speed

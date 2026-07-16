@@ -6,6 +6,7 @@ class Cave:
         self.description = None
         self.linked_caves = {}
         self.character = None
+        self.interactability = False
 
     '''sets cave descriptions'''
     def set_description(self, cave_description):
@@ -39,6 +40,9 @@ class Cave:
     def get_character(self):
         '''get character '''
         return self.character
+    
+    def set_interactability(self, interactability):
+        self.interactability = interactability
 
     '''organises main loop outputs'''
     def describe(self):
@@ -51,3 +55,5 @@ class Cave:
             return self.linked_caves[direction]
         else:
             print("You can't go that way")
+
+    
