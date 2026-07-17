@@ -38,10 +38,10 @@ class Character():
         print(self.name + " doesn't seem to want to fight.")
 
 class Enemy(Character):
-    def __init__(self, char_name, char_description, damage, attack_speed):
+    def __init__(self, char_name, char_description, damage, attack_speed = 0):
         super().__init__(char_name, char_description)
         self.enemy_damage = damage
-        self.enemy_attack_speed = attack_speed
+        self.attack_speed = attack_speed
         
     def fight(self, weapon_damage):
         self.health -= weapon_damage
@@ -55,7 +55,7 @@ class Enemy(Character):
         return self.enemy_damage
     
     def set_speed(self, attack_speed):
-        self.enemy_attack_speed = attack_speed
+        self.attack_speed = attack_speed
 
     def get_speed(self):
-        return self.enemy_attack_speed
+        return self.attack_speed

@@ -5,8 +5,69 @@ import os
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-# Rooms and interactability
+PRIMARY_BULLETS = 0
+SECONDARY_BULLETS = 0
+
+# ============================================================
+#  SCALABLE ENEMY SYSTEM
+# ============================================================
+
+class EnemyFactory:
+    def __init__(self):
+        self.templates = {}
+
+    def register(self, name, description, damage, speed, health, dialogue):
+        self.templates[name] = {
+            "description": description,
+            "damage": damage,
+            "speed": speed,
+            "health": health,
+            "dialogue": dialogue
+        }
+
+    def create(self, name):
+        t = self.templates[name]
+        e = Enemy(name, t["description"], t["damage"], t["speed"])
+        e.set_health(t["health"])
+        e.set_dialogue(t["dialogue"])
+        return e
+
+enemy_factory = EnemyFactory()
+
+# Register enemy types
+enemy_factory.register(
+    "Stalker",
+    "*You feel something watching you.*",
+    damage=15,
+    speed=0,
+    health=100,
+    dialogue="..."
+)
+
+enemy_factory.register(
+    "Zombie",
+    "A pale, groaning creature.",
+    damage=10,
+    speed=1,
+    health=50,
+    dialogue="Kill..."
+)
+
+enemy_factory.register(
+    "Destroyer",
+    "A humanoid musclebound figure looms over you. There is bloodlust in the way it moves.",
+    damage=100,
+    speed=2,
+    health=10000,
+    dialogue="KILL!!"
+)
+
+# ============================================================
+#  ROOMS AND INTERACTABILITY
+# ============================================================
+
 entrance = Cave("Entrance")
+entrance.set_interactability(True)
 hallway_1 = Cave("Central Hallway")
 hallway_2 = Cave("South Hallway")
 hallway_2.set_interactability(True)
@@ -34,14 +95,41 @@ training_room.set_interactability(True)
 
 clear_screen()
 
-# Player stats
+# ============================================================
+#  PLAYER STATS
+# ============================================================
+
 player_health = 100
 weapon_primary = "AR-15"
+PRIMARY_BULLETS = 20
 primary_damage = 50
 weapon_secondary = "Glock-17"
+SECONDARY_BULLETS = 100
 secondary_damage = 20
+player_evading = False
 
-# Descriptions
+def reload():
+    global PRIMARY_BULLETS, SECONDARY_BULLETS
+    PRIMARY_BULLETS = 20
+    SECONDARY_BULLETS = 100
+    
+# Keys
+serum_keys = False
+armory_keys = False
+generator_keys = False
+holding_keys = False
+
+# Player attributes
+poison_immunity = False
+shock_blaster = False
+shock_charged = False
+shock_avail = False
+stim = False
+
+# ============================================================
+#  DESCRIPTIONS
+# ============================================================
+
 entrance.set_description("A white, sterile lobby. The desolate rows of chairs and the empty reception desk unnerve you.\n")
 hallway_1.set_description("A simple white hallway. There is an open door on the west side of it.\n")
 south_laboratory.set_description("A large room with a high ceiling. There is a grated floor above. There are vials of liquid in a locked glass box.\n")
@@ -60,7 +148,10 @@ generators.set_description("A set of emergency generators. You can charge someth
 holding_cells.set_description("Containment units that clearly were breached. There is a locked locker lying dented on the ground.")
 training_room.set_description("Targets set some distance across the room are full of bullet holes. There's a set of keys on a wall hook.")
 
-#room links
+# ============================================================
+#  ROOM LINKS
+# ============================================================
+
 entrance.set_link_caves(hallway_1, "south")
 south_laboratory.set_link_caves(hallway_1, "east")
 south_laboratory_2.set_link_caves(staircase_2, "south")
@@ -69,8 +160,10 @@ infirmary.set_link_caves(hallway_2, "north")
 armory.set_link_caves(hallway_2, "west")
 armory.set_link_caves(training_room, "east")
 training_room.set_link_caves(armory, "west")
+garage_basement.set_link_caves(hallway_basement, "north")
+holding_cells.set_link_caves(staircase_basement, "south")
+generators.set_link_caves(hallway_basement, "west")
 
-#hallways and staircases links
 hallway_1.set_link_caves(hallway_2, "south")
 hallway_2.set_link_caves(staircase_1, "west")
 hallway_2.set_link_caves(armory, "east")
@@ -80,77 +173,81 @@ hallway_1.set_link_caves(south_laboratory, "west")
 hallway_1.set_link_caves(entrance, "north")
 staircase_1.set_link_caves(staircase_2, "up")
 staircase_1.set_link_caves(hallway_2, "east")
+staircase_1.set_link_caves(staircase_basement, "down")
 staircase_2.set_link_caves(staircase_1, "down")
 staircase_2.set_link_caves(south_laboratory_2, "north")
 staircase_2.set_link_caves(hallway_floor_2, "east")
+staircase_basement.set_link_caves(staircase_1, "up")
+staircase_basement.set_link_caves(holding_cells, "north")
+staircase_basement.set_link_caves(hallway_basement, "east")
+hallway_basement.set_link_caves(generators, "east")
+hallway_basement.set_link_caves(staircase_basement, "west")
+hallway_basement.set_link_caves(garage_basement, "south")
 hallway_floor_2.set_link_caves(staircase_2, "west")
 hallway_floor_2.set_link_caves(lounge, "east")
 
-#keys
-serum_keys = False
-armory_keys = False
-generator_keys = False
-holding_keys = False
+# ============================================================
+#  SCALABLE ENEMY SPAWN TABLE
+# ============================================================
 
-#player attributes
-poison_immunity = False
-shock_blaster = False
-shock_charged = False
-shock_avail = False
-stim = False
+enemy_spawns = {
+    "South Laboratory First Floor": "Stalker",
+    "South Laboratory Second Floor": "Stalker",
+    "Hallway 2nd Floor": "Zombie",
+    "South Hallway": "Zombie",
+    "Basement Hallway": "Zombie",
+    "Holding Cells": "Zombie",
+    "Generators": "Zombie",
+    "Armory": "Stalker",
+    "Training Room": "Zombie",
+    "Garage": "Destroyer"
+}
 
-# Enemies
+boss_dead = False
+
+# Apply spawns
+all_caves = [
+    entrance, hallway_1, hallway_2, south_laboratory, south_laboratory_2,
+    staircase_1, staircase_2, staircase_basement, armory, infirmary,
+    hallway_floor_2, lounge, hallway_basement, garage_basement,
+    holding_cells, generators, training_room
+]
+
+for cave in all_caves:
+    name = cave.get_name()
+    if name in enemy_spawns:
+        cave.set_character(enemy_factory.create(enemy_spawns[name]))
+
+# ============================================================
+#  GAME LOOP
+# ============================================================
+
+print("Commands: Fight (Only works if there is an enemy in the room with you, evading negates damage as a whole), Interact (Allows you to investigate parts of the room), Move (By entering direction to move in), Rest (Only works in infirmary), Inventory (Tells you your weapons, buffs and objects of interest.)\n")
+
 current_cave = entrance
 enemy_cooldown = 0
-
-#stalker
-stalker = Enemy("Stalker", "*You feel something watching you.*", 15, 0)
-stalker.set_dialogue("...")
-stalker.set_health(100)
-
-#zombie
-zombie = Enemy("Zombie", "A pale, groaning creature.", 10, 1)
-zombie.set_dialogue("Kill...")
-zombie.set_health(50)
-
-#ultimate weapon
-destroyer = Enemy("Destroyer", "A humanoid musclebound figure looms over you. There is bloodlust in the way it moves.", 100, 2)
-destroyer.set_dialogue("KILL!!")
-destroyer.set_health(10000)
-
-south_laboratory.set_character(stalker)
-south_laboratory_2.set_character(stalker)
-hallway_floor_2.set_character(zombie)
-hallway_2.set_character(zombie)
-hallway_basement.set_character(zombie)
-holding_cells.set_character(zombie)
-generators.set_character(zombie)
-armory.set_character(stalker)
-training_room.set_character(zombie)
-garage_basement.set_character(destroyer)
-
-print("Commands: Fight (Only works if there is an enemy in the room with you, evading negates damage as a whole), Interact (Allows you to investigate parts of the room), Move (By entering direction to move in), Rest (Only works in infirmary), Inventory (Tells you your weapons, buffs and objects of interest.)")
-print("I don't make plot holes which is why YOU CANT SHOOT ANYTHING OPEN THEY'RE ALL BULLETPROOF\n")
-
 dead = False
 
 while not dead:
     current_cave.describe()
     print("")
+    player_evading = False
 
-    if current_cave.get_name() == "Garage":
+    if current_cave.get_name() == "Garage" and poison_immunity == False:
         dead = True
         print("The poison in the air emitted by the Destroyer immediately takes over your body and kills you.")
         break
+    else:
+        pass
 
     inhabitant = current_cave.get_character()
     if inhabitant is not None:
         inhabitant.describe()
-        inhabitant_name = inhabitant.name   # FIXED
+        inhabitant_name = inhabitant.name
 
     command = input("> ")
 
-    # movement
+    # MOVEMENT
     if command in ["north", "east", "south", "west", "up", "down"]:
         if inhabitant is not None:
             print(f"The {inhabitant_name} will kill you if you try to run away.")
@@ -158,17 +255,20 @@ while not dead:
         else:
             current_cave = current_cave.move(command)
 
+    # TALK
     elif command == "talk":
         if inhabitant is not None:
             inhabitant.talk()
             input()
 
+    # INVENTORY
     elif command == "inventory":
         print(f"You possess a {weapon_primary} and a {weapon_secondary}.")
+        print(f"You only have {PRIMARY_BULLETS} rounds left in your {weapon_primary} and {SECONDARY_BULLETS} bullets left in your {weapon_secondary}")
         if shock_blaster:
             print("You have the Shock Blaster.")
         if stim:
-            print("The stim you injected allows you to shoot two bullets in one action. You aren't fast enough to use it on the stimulant.")
+            print("The stim you injected allows you to shoot more precisely, dealing more damage. Doesn't work with shock blaster.")
         if poison_immunity:
             print("The serums you injected give you immunity to all poisons.")
         print("Your objects of interest are:")
@@ -182,6 +282,7 @@ while not dead:
             print("A keycard")
         input()
 
+    # FIGHT
     elif command == "fight":
         if inhabitant is not None and isinstance(inhabitant, Enemy):
 
@@ -192,42 +293,101 @@ while not dead:
             else:
                 weapon = input(f"What will you fight with? {weapon_primary} or {weapon_secondary}? (primary/secondary/evading) ")
 
+            # PRIMARY WEAPON (instant death if not enough ammo)
             if weapon == "primary":
-                weapon_damage = primary_damage
+                if PRIMARY_BULLETS >= 5:
+                    weapon_damage = primary_damage
+                    PRIMARY_BULLETS -= 5
+                else:
+                    print("Your primary weapon was empty. It killed you before you could use a weapon with bullets.")
+                    dead = True
+                    continue
+
+            # ULTIMATE WEAPON
             elif weapon == "ultimate":
                 if shock_avail:
-                    weapon_damage = 1000
+                    weapon_damage = 2000
+                    print(f"The shock blaster sends a bolt of immense energy at the {inhabitant_name}.")
                 else:
                     print("You were too slow with getting a weapon out. It killed you.")
                     dead = True
                     continue
+
+            # SECONDARY WEAPON (instant death if not enough ammo)
             elif weapon == "secondary":
-                weapon_damage = secondary_damage
+                if SECONDARY_BULLETS >= 5:
+                    weapon_damage = secondary_damage
+                    SECONDARY_BULLETS -= 5
+                else:
+                    print("Your secondary weapon was empty. It killed you before you could use a weapon with bullets.")
+                    dead = True
+                    continue
+
+            # EVADING
+            elif weapon == "evading":
+                player_evading = True
+                weapon_damage = 0
+                print("You prepare to evade.")
+
+            # INVALID INPUT (instant death)
             else:
                 print("You were too slow with getting a weapon out. It killed you.")
                 dead = True
                 continue
-
-            inhabitant.health -= weapon_damage
+            
+            if not player_evading:
+                inhabitant.health -= weapon_damage
 
             # enemy health feedback
-            if inhabitant.health >= 75:
-                print("It seems uninjured.")
-            elif inhabitant.health >= 50:
-                print("It is injured.")
-            elif inhabitant.health > 0:
-                print("It seems gravely injured.")
-            else:
-                print("It's dead.")
-                current_cave.set_character(None)
+            if inhabitant_name == "Stalker":
+                if inhabitant.health >= 75:
+                    print("It seems uninjured.")
+                elif inhabitant.health >= 50:
+                    print("It is injured.")
+                elif inhabitant.health > 0:
+                    print("It seems gravely injured.")
+                else:
+                    print("It's dead.")
+                    current_cave.set_character(None)
+            
+            elif inhabitant_name == "Zombie":
+                if inhabitant.health >= 40:
+                    print("It seems uninjured.")
+                elif inhabitant.health >= 20:
+                    print("It is injured.")
+                elif inhabitant.health > 0:
+                    print("It seems gravely injured.")
+                else:
+                    print("It's dead.")
+                    current_cave.set_character(None)
+            
+            elif inhabitant_name == "Destroyer":
+                if inhabitant.health >= 8000:
+                    print("It moves without struggle. You have to hit it harder.")
+                elif inhabitant.health >= 5000:
+                    print("It's heaving now.")
+                elif inhabitant.health >= 2000:
+                    print("Just a little more...")
+                elif inhabitant.health >= 0:
+                    print("It's almost dead.")
+                else:
+                    print("It crashed down with a thud. It's finally dead.")
+                    boss_dead = True
+                    current_cave.set_character(None)
 
-            # enemy attack logic (FIXED)
-            if inhabitant.health > 0:
+            # enemy attack logic
+            if inhabitant.health > 0 and not player_evading:
                 if enemy_cooldown == 0:
                     print(f"The {inhabitant_name} attacks.")
                     player_health -= inhabitant.get_damage()
-                    enemy_cooldown = inhabitant.attack_speed   # FIXED: cooldown only set here
+                    enemy_cooldown = inhabitant.get_speed()
                 else:
+                    print(f"The {inhabitant_name} prepares to attack.")
+            else:
+                if player_evading:
+                    print(f"\nYou evade the {inhabitant_name}'s attack.")
+                    enemy_cooldown = inhabitant.get_speed()
+                elif enemy_cooldown != 0:
                     enemy_cooldown -= 1
                     print(f"The {inhabitant_name} prepares to attack.")
 
@@ -243,12 +403,15 @@ while not dead:
             else:
                 print("You succumb to your injuries.")
                 dead = True
+            
+            print(f"You only have {PRIMARY_BULLETS} rounds left in your {weapon_primary} and {SECONDARY_BULLETS} bullets left in your {weapon_secondary}")
 
             input()
 
         else:
             print("There's nothing here.")
 
+    # INTERACT
     elif command == "interact":
         if current_cave.interactability:
 
@@ -270,7 +433,7 @@ while not dead:
                 print("A keycard.")
                 current_cave.interactability = False
 
-            elif current_cave.get_name() == "Generator":
+            elif current_cave.get_name() == "Generators":
                 if generator_keys:
                     print("The keycard activates the Generators. You use it to charge the shock blaster and so it is now available for use.")
                     shock_charged = True
@@ -292,12 +455,20 @@ while not dead:
                     print("You need a key.")
 
             elif current_cave.get_name() == "Armory":
-                if armory_keys and generator_keys and serum_keys:
+                if armory_keys and generator_keys and serum_keys and shock_blaster == False:
                     print("You use the two keys and the keycard, opening the weapon's case. The shock blaster, a rifle with a tesla coil barrel capable of firing thousands of volts enters your possession.")
+                    print("You restock on ammo.")
                     shock_blaster = True
-                    current_cave.interactability = False
+                    reload()
+
+                elif shock_blaster:
+                    print("You restock on ammo.")
+                    reload()
+
                 else:
-                    print("You're missing something.")
+                    print("You're missing something that can unlock the shock blaster.")
+                    print("You restock on ammo.")
+                    reload()
 
             elif current_cave.get_name() == "South Laboratory Second Floor":
                 stim = True
@@ -305,11 +476,21 @@ while not dead:
                 secondary_damage = 40
                 print("You find a stimulant injector and use it. You can shoot faster now.")
                 current_cave.interactability = False
+            
+            elif current_cave.get_name() == "Entrance":
+                if boss_dead:
+                    print("You leave. The job is finished. The company that hired you to kill their experiment gives you the shock blaster as a gift. You eat dinner, wondering when you'll get a girlfriend.")
+                    dead = True
+                else:
+                    print("You aren't done yet. Finish the job.")
+
+
 
         else:
             print("There's nothing to do here.")
         input()
 
+    # REST
     elif command == "rest":
         if current_cave.get_name() == "Infirmary":
             player_health = 100
