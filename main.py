@@ -203,6 +203,7 @@ enemy_spawns = {
     "Garage": "Destroyer"
 }
 
+
 boss_dead = False
 
 # Apply spawns
@@ -284,132 +285,142 @@ while not dead:
 
     # FIGHT
     elif command == "fight":
-        if inhabitant is not None and isinstance(inhabitant, Enemy):
+            if inhabitant is not None and isinstance(inhabitant, Enemy):
 
-            # weapon selection
-            if shock_blaster and shock_charged:
-                shock_avail = True
-                weapon = input(f"What will you fight with? Shock Blaster, {weapon_primary} or {weapon_secondary}? (ultimate/primary/secondary/evading) ")
-            else:
-                weapon = input(f"What will you fight with? {weapon_primary} or {weapon_secondary}? (primary/secondary/evading) ")
+            # --- WEAPON SELECTION LOOP ---
+                while True:
+                    clear_screen()
+                    print("Choose your action:")
+                    print("1 - Primary weapon")
+                    print("2 - Secondary weapon")
+                    print("3 - Evade")
+                    if shock_blaster and shock_charged:
+                        print("4 - Special weapon")
+                    try:
+                        choice = int(input("\nAction: "))
+                    except ValueError:
+                        print("Invalid input. Choose again.")
+                        input()
+                        continue
 
-            # PRIMARY WEAPON (instant death if not enough ammo)
-            if weapon == "primary":
-                if PRIMARY_BULLETS >= 5:
-                    weapon_damage = primary_damage
-                    PRIMARY_BULLETS -= 5
+                    # PRIMARY
+                    if choice == 1:
+                        if PRIMARY_BULLETS >= 5:
+                            weapon_damage = primary_damage
+                            PRIMARY_BULLETS -= 5
+                            break
+                        else:
+                            print("Your primary weapon is empty! The enemy gets a free attack.")
+                            player_health -= inhabitant.get_damage()
+                            weapon_damage = 0
+                            break
+
+                    # SECONDARY
+                    elif choice == 2:
+                        if SECONDARY_BULLETS >= 5:
+                            weapon_damage = secondary_damage
+                            SECONDARY_BULLETS -= 5
+                            break
+                        else:
+                            print("Your secondary weapon is empty! The enemy gets a free attack.")
+                            player_health -= inhabitant.get_damage()
+                            weapon_damage = 0
+                            break
+
+                    # ULTIMATE
+                    elif choice == 4 and shock_blaster and shock_charged:
+                        weapon_damage = 2000
+                        print(f"The shock blaster sends a bolt of immense energy at the {inhabitant_name}.")
+                        break
+
+                    # EVADE
+                    elif choice == 3:
+                        player_evading = True
+                        weapon_damage = 0
+                        print("You prepare to evade.")
+                        break
+
+                    else:
+                        print("Invalid choice. Try again.")
+                        input()
+                        continue
+
+                # --- APPLY DAMAGE ---
+                if not player_evading:
+                    inhabitant.health -= weapon_damage
+
+                # --- ENEMY HEALTH FEEDBACK ---
+                if inhabitant_name == "Stalker":
+                    if inhabitant.health >= 75:
+                        print("It seems uninjured.")
+                    elif inhabitant.health >= 50:
+                        print("It is injured.")
+                    elif inhabitant.health > 0:
+                        print("It seems gravely injured.")
+                    else:
+                        print("It's dead.")
+                        current_cave.set_character(None)
+
+                elif inhabitant_name == "Zombie":
+                    if inhabitant.health >= 40:
+                        print("It seems uninjured.")
+                    elif inhabitant.health >= 20:
+                        print("It is injured.")
+                    elif inhabitant.health > 0:
+                        print("It seems gravely injured.")
+                    else:
+                        print("It's dead.")
+                        current_cave.set_character(None)
+
+                elif inhabitant_name == "Destroyer":
+                    if inhabitant.health >= 8000:
+                        print("It moves without struggle. You have to hit it harder.")
+                    elif inhabitant.health >= 5000:
+                        print("It's heaving now.")
+                    elif inhabitant.health >= 2000:
+                        print("Just a little more...")
+                    elif inhabitant.health > 0:
+                        print("It's almost dead.")
+                    else:
+                        print("It crashed down with a thud. It's finally dead.")
+                        boss_dead = True
+                        current_cave.set_character(None)
+
+                # --- ENEMY ATTACK LOGIC ---
+                if inhabitant.health > 0 and not player_evading:
+                    if enemy_cooldown == 0:
+                        print(f"The {inhabitant_name} attacks.")
+                        player_health -= inhabitant.get_damage()
+                        enemy_cooldown = inhabitant.get_speed()
+                    else:
+                        print(f"The {inhabitant_name} prepares to attack.")
                 else:
-                    print("Your primary weapon was empty. It killed you before you could use a weapon with bullets.")
+                    if player_evading:
+                        print(f"You evade the {inhabitant_name}'s attack.")
+                        enemy_cooldown = inhabitant.get_speed()
+                    elif enemy_cooldown != 0:
+                        enemy_cooldown -= 1
+                        print(f"The {inhabitant_name} prepares to attack.")
+
+                # --- PLAYER HEALTH FEEDBACK ---
+                if player_health == 100:
+                    print("You are perfectly uninjured.")
+                elif player_health >= 75:
+                    print("You are relatively uninjured.")
+                elif player_health >= 50:
+                    print("You are injured.")
+                elif player_health > 0:
+                    print("You are gravely injured.")
+                else:
+                    print("You succumb to your injuries.")
                     dead = True
-                    continue
 
-            # ULTIMATE WEAPON
-            elif weapon == "ultimate":
-                if shock_avail:
-                    weapon_damage = 2000
-                    print(f"The shock blaster sends a bolt of immense energy at the {inhabitant_name}.")
-                else:
-                    print("You were too slow with getting a weapon out. It killed you.")
-                    dead = True
-                    continue
+                print(f"You only have {PRIMARY_BULLETS} rounds left in your {weapon_primary} and {SECONDARY_BULLETS} bullets left in your {weapon_secondary}")
+                input()
 
-            # SECONDARY WEAPON (instant death if not enough ammo)
-            elif weapon == "secondary":
-                if SECONDARY_BULLETS >= 5:
-                    weapon_damage = secondary_damage
-                    SECONDARY_BULLETS -= 5
-                else:
-                    print("Your secondary weapon was empty. It killed you before you could use a weapon with bullets.")
-                    dead = True
-                    continue
-
-            # EVADING
-            elif weapon == "evading":
-                player_evading = True
-                weapon_damage = 0
-                print("You prepare to evade.")
-
-            # INVALID INPUT (instant death)
             else:
-                print("You were too slow with getting a weapon out. It killed you.")
-                dead = True
-                continue
-            
-            if not player_evading:
-                inhabitant.health -= weapon_damage
+                print("There's nothing here.")
 
-            # enemy health feedback
-            if inhabitant_name == "Stalker":
-                if inhabitant.health >= 75:
-                    print("It seems uninjured.")
-                elif inhabitant.health >= 50:
-                    print("It is injured.")
-                elif inhabitant.health > 0:
-                    print("It seems gravely injured.")
-                else:
-                    print("It's dead.")
-                    current_cave.set_character(None)
-            
-            elif inhabitant_name == "Zombie":
-                if inhabitant.health >= 40:
-                    print("It seems uninjured.")
-                elif inhabitant.health >= 20:
-                    print("It is injured.")
-                elif inhabitant.health > 0:
-                    print("It seems gravely injured.")
-                else:
-                    print("It's dead.")
-                    current_cave.set_character(None)
-            
-            elif inhabitant_name == "Destroyer":
-                if inhabitant.health >= 8000:
-                    print("It moves without struggle. You have to hit it harder.")
-                elif inhabitant.health >= 5000:
-                    print("It's heaving now.")
-                elif inhabitant.health >= 2000:
-                    print("Just a little more...")
-                elif inhabitant.health >= 0:
-                    print("It's almost dead.")
-                else:
-                    print("It crashed down with a thud. It's finally dead.")
-                    boss_dead = True
-                    current_cave.set_character(None)
-
-            # enemy attack logic
-            if inhabitant.health > 0 and not player_evading:
-                if enemy_cooldown == 0:
-                    print(f"The {inhabitant_name} attacks.")
-                    player_health -= inhabitant.get_damage()
-                    enemy_cooldown = inhabitant.get_speed()
-                else:
-                    print(f"The {inhabitant_name} prepares to attack.")
-            else:
-                if player_evading:
-                    print(f"\nYou evade the {inhabitant_name}'s attack.")
-                    enemy_cooldown = inhabitant.get_speed()
-                elif enemy_cooldown != 0:
-                    enemy_cooldown -= 1
-                    print(f"The {inhabitant_name} prepares to attack.")
-
-            # player health feedback
-            if player_health == 100:
-                print("You are perfectly uninjured.")
-            elif player_health >= 75:
-                print("You are relatively uninjured.")
-            elif player_health >= 50:
-                print("You are injured.")
-            elif player_health > 0:
-                print("You are gravely injured.")
-            else:
-                print("You succumb to your injuries.")
-                dead = True
-            
-            print(f"You only have {PRIMARY_BULLETS} rounds left in your {weapon_primary} and {SECONDARY_BULLETS} bullets left in your {weapon_secondary}")
-
-            input()
-
-        else:
-            print("There's nothing here.")
 
     # INTERACT
     elif command == "interact":
